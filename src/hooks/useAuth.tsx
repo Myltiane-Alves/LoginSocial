@@ -48,24 +48,31 @@ function AuthProvider({ children }: AuthProviderData) {
       const FORCE_VERIFY = true;
       const STATE = generateRandom(30);
 
-      // assemble authUrl with twitchEndpoint authorization, client_id, 
-      // redirect_uri, response_type, scope, force_verify and state
+      const authUrl = twitchEndpoints.authorization + 
+      `?clienr_id=${CLIENT_ID}` +
+      `&redirect_uri=${REDIRECT_URI}` +
+      `&response_type=${RESPONSE_TYPE}` +
+      `&scope=${SCOPE}` +
+      `&force_verify=${FORCE_VERIFY}` +
+      `&state=${STATE}`;
 
-      // call startAsync with authUrl
+      const response = await startAsync({ authUrl }) as AuthorizationResponse;
 
-      // verify if startAsync response.type equals "success" and response.params.error differs from "access_denied"
-      // if true, do the following:
+      if(response.type === 'success' && response.params.error !== 'access_denied') {
+          
+        if(response.params.state !== STATE) {
+          throw new Error('Invalid state value');
+        }
 
-        // verify if startAsync response.params.state differs from STATE
-        // if true, do the following:
-          // throw an error with message "Invalid state value"
+        api.defaults.headers.authorization = `Bearer ${response.params.access_token}`;
+     
+        const userResponse = await api.get('/user');
+        const userInfos = userResponse.data.data[0] as User;
 
-        // add access_token to request's authorization header
-
-        // call Twitch API's users route
-
-        // set user state with response from Twitch API's route "/users"
-        // set userToken state with response's access_token from startAsync
+        setUser(userInfos);
+        setUserToken(String(response.params.access_token));
+        
+      } 
     } catch (error) {
       // throw an error
     } finally {
