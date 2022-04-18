@@ -3,6 +3,7 @@ import React, { useEffect, createContext, useContext, useState, ReactNode } from
 import { generateRandom } from 'expo-auth-session/build/PKCE';
 
 import { api } from '../services/api';
+import { proc } from 'react-native-reanimated';
 
 interface User {
   id: number;
@@ -30,13 +31,22 @@ const twitchEndpoints = {
   revocation: 'https://id.twitch.tv/oauth2/revoke'
 };
 
+type AuthorizationResponse = {
+  params: {
+    error?: string;
+    state?: string;
+    access_token?: string;
+  },
+  type?: string;
+}
+
 function AuthProvider({ children }: AuthProviderData) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [user, setUser] = useState({} as User);
   const [userToken, setUserToken] = useState('');
 
-  // get CLIENT_ID from environment variables
+  const { CLIENT_ID } = process.env;
 
   async function signIn() {
     try {
@@ -71,33 +81,39 @@ function AuthProvider({ children }: AuthProviderData) {
 
         setUser(userInfos);
         setUserToken(String(response.params.access_token));
-        
+
       } 
     } catch (error) {
-      // throw an error
+      throw new Error("")
     } finally {
-      // set isLoggingIn to false
+      setIsLoggingIn(false)
     }
   }
 
   async function signOut() {
     try {
-      // set isLoggingOut to true
+      setIsLoggingOut(true)
 
-      // call revokeAsync with access_token, client_id and twitchEndpoint revocation
+      revokeAsync({
+        token: userToken,
+        clientId: CLIENT_ID,
+      }, {
+        revocationEndpoint: twitchEndpoints.revocation
+      });
     } catch (error) {
     } finally {
-      // set user state to an empty User object
-      // set userToken state to an empty string
+     
+      setUser({} as User);
+      setUserToken('');
 
-      // remove "access_token" from request's authorization header
+      delete api.defaults.headers.authorization;
 
-      // set isLoggingOut to false
+      setIsLoggingOut(false)
     }
   }
 
   useEffect(() => {
-    // add client_id to request's "Client-Id" header
+    api.defaults.headers['Client-Id' ] = CLIENT_ID; 
   }, [])
 
   return (
